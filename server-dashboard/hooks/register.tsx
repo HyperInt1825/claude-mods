@@ -116,6 +116,36 @@ function ago(now: number, at: number): string {
   return `${Math.round(minutes / 60 / 24)}d ago`
 }
 
+// The dashboard as plain text, for surfaces that do not draw the pane (the
+// phone app) and for the model, which reads a command's output too.
+function report(now: Snapshot | null, history: Deploy[], options: Options, clock: number): string {
+  if (now === null) return 'Could not read server health.'
+
+  const health = now.health
+  const lines = [
+    `${now.host} · up ${now.uptime}`,
+    `Load    ${now.load} (${now.cpus} CPU)`,
+    `Memory  ${bar(now.memUsed, now.memTotal)}  ${gb(now.memUsed)} / ${gb(now.memTotal)}`,
+    `Disk    ${bar(now.diskUsed, now.diskTotal)}  ${gb(now.diskUsed)} / ${gb(now.diskTotal)}`,
+    options.appDir === ''
+      ? 'App     (set the app folder in /config)'
+      : `App     ${now.commit ?? 'not a git repo'}${now.isDirty ? ' · uncommitted changes' : ''}`,
+  ]
+  if (health !== null) {
+    lines.push(
+      health.status !== null && health.status < 400
+        ? `Health  UP · HTTP ${health.status} · ${health.ms}ms`
+        : `Health  DOWN · ${health.status === null ? 'no answer' : `HTTP ${health.status}`}`,
+    )
+  }
+  for (const one of history.slice(0, 3)) {
+    lines.push(`${one.kind === 'deploy' ? 'Deploy ' : 'Rollback'} ${ago(clock, one.at)}${one.fromCommit ? ` · from ${one.fromCommit}` : ''}`)
+  }
+  lines.push('', '/deploy · /rollback · /health')
+
+  return lines.join('\n')
+}
+
 function deployPrompt(options: Options): string {
   const where = options.appDir || '(not set: find the app on this server and confirm it with me first)'
   const restart = options.restartCommand || '(not set: work out how the app is restarted and confirm it with me first)'
@@ -204,22 +234,16 @@ export const register: Register = (on, rawOptions) => {
   })
 
   on('command.run', { command: 'server' }, async $ => {
-    await $.ui.open({ id: PANE, title: 'Server' })
+    await refresh($, options)
+    void $.ui.open({ id: PANE, title: 'Server' })
 
-    return { text: 'Server dashboard opened.' }
+    return { text: report(await read($, snapshot), await read($, deploys), options, await $.clock.now()) }
   })
 
   on('command.run', { command: 'health' }, async $ => {
     await refresh($, options)
-    const now = await read($, snapshot)
-    const health = now?.health
-    const app = health ? (health.status === null ? 'app DOWN (no answer)' : `app HTTP ${health.status} in ${health.ms}ms`) : 'no health URL set'
 
-    return {
-      text: now
-        ? `${now.host}: load ${now.load}, memory ${bar(now.memUsed, now.memTotal)}, disk ${bar(now.diskUsed, now.diskTotal)}, ${app}`
-        : 'Could not read server health.',
-    }
+    return { text: report(await read($, snapshot), [], options, await $.clock.now()) }
   })
 
   on('command.run', { command: 'deploy' }, async $ => {

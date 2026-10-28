@@ -59,3 +59,25 @@ test('the pane shows health on phone and desktop', async ($, on) => {
     await ui.unmount()
   }
 })
+
+test('/server prints the dashboard as text for the phone', async ($, on) => {
+  on('command.register', () => ({ value: { command: 'server' } }))
+  on('ui.open', () => ({ value: { isPlaced: false, reason: 'no-surface' } }))
+  on('clock.now', () => ({ value: 60_000 }))
+  on('process.run', (_, e) => {
+    const argv = (e as { argv: string[] }).argv.join(' ')
+    const out: Record<string, string> = {
+      hostname: 'ip-172-31-40-76',
+      'uptime -p': 'up 3 days',
+      'cat /proc/loadavg': '0.12 0.20 0.18 1/100 1',
+      nproc: '2',
+      'free -b': '              total        used\nMem:     4000000000  1000000000',
+      'df -B1 --output=used,size /': ' Used Size\n19000000000 20000000000',
+    }
+    return { value: { exitCode: argv in out ? 0 : 1, stdout: out[argv] ?? '', stderr: '', isStdoutTruncated: false, isStderrTruncated: false } }
+  })
+
+  const ran = await $.command.run({ command: 'server', args: '' })
+  expect(ran.text).toContain('ip-172-31-40-76 · up 3 days')
+  expect(ran.text).toContain('Disk    ███████████░ 95%')
+})
