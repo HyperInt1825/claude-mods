@@ -1,0 +1,29 @@
+{
+  "name": "server-dashboard",
+  "version": "0.1.0",
+  "description": "Live server health pane with deploy, rollback and health-check buttons, plus a guard against dangerous commands",
+  "author": {
+    "name": "HyperInt1825"
+  },
+  "types": "./types/index.d.ts",
+  "userConfig": {
+    "appDir": {
+      "type": "string",
+      "title": "App folder",
+      "description": "Absolute path of the app's git repo on this server, e.g. /var/www/myapp (leave empty to skip app status)",
+      "default": ""
+    },
+    "restartCommand": {
+      "type": "string",
+      "title": "Restart command",
+      "description": "How the app restarts, e.g. sudo systemctl restart myapp, docker compose up -d --build, or pm2 restart myapp",
+      "default": ""
+    },
+    "healthUrl": {
+      "type": "string",
+      "title": "Health check URL",
+      "description": "A URL that answers 2xx when the app is up, e.g. http://localhost:3000/health",
+      "default": ""
+    }
+  }
+}

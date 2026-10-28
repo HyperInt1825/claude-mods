@@ -1,0 +1,11 @@
+{
+  "name": "claude-mods",
+  "owner": { "name": "HyperInt1825" },
+  "plugins": [
+    {
+      "name": "server-dashboard",
+      "source": "./server-dashboard",
+      "description": "Live server health pane with deploy, rollback and health-check buttons, plus a guard against dangerous commands"
+    }
+  ]
+}
